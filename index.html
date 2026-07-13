@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Extrato — Controlo Financeiro</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e1210;
+  --paper:#161c19;
+  --paper-2:#1c2320;
+  --line: rgba(233,231,221,0.09);
+  --line-strong: rgba(233,231,221,0.18);
+  --ink:#e9e7dd;
+  --ink-dim:#9aa39c;
+  --ink-faint:#6b746e;
+  --brass:#c9a876;
+  --forest:#4c8a72;
+  --forest-dim:#355e4f;
+  --brick:#b8654a;
+  --amber:#d4a24c;
+  --font-display:'Fraunces', serif;
+  --font-mono:'IBM Plex Mono', monospace;
+  --font-sans:'IBM Plex Sans', sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-sans);
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(76,138,114,0.10), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 100% 0%, rgba(201,168,118,0.06), transparent 60%);
+  background-attachment:fixed;
+}
+::selection{ background:var(--forest-dim); color:var(--ink); }
+a{color:var(--brass);}
+
+.app{ max-width:920px; margin:0 auto; padding:28px 18px 110px; }
+
+.masthead{
+  display:flex; align-items:baseline; justify-content:space-between;
+  border-bottom:1px solid var(--line-strong);
+  padding-bottom:16px; margin-bottom:22px;
+}
+.masthead .brand{ display:flex; flex-direction:column; }
+.masthead .brand small{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.18em;
+  color:var(--ink-faint); text-transform:uppercase; margin-bottom:4px;
+}
+.masthead h1{
+  font-family:var(--font-display); font-weight:500; font-size:26px; margin:0;
+  letter-spacing:.01em;
+}
+.masthead .date-stamp{
+  font-family:var(--font-mono); font-size:11px; color:var(--ink-dim);
+  text-align:right; line-height:1.6;
+  border:1px solid var(--line-strong); padding:6px 10px; border-radius:2px;
+}
+
+/* Ledger perforation divider */
+.perf{
+  height:14px; margin:22px -18px; position:relative;
+  background-image: radial-gradient(circle, var(--bg) 3.5px, transparent 3.6px);
+  background-size: 16px 14px; background-position: 0 -7px;
+  border-top:1px dashed var(--line-strong); border-bottom:1px dashed var(--line-strong);
+}
+
+.tabs{
+  position:fixed; bottom:0; left:0; right:0;
+  display:flex; background:var(--paper);
+  border-top:1px solid var(--line-strong);
+  z-index:50; padding-bottom:env(safe-area-inset-bottom);
+}
+.tab-btn{
+  flex:1; background:none; border:none; color:var(--ink-faint);
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.06em;
+  padding:11px 4px 9px; cursor:pointer; text-transform:uppercase;
+  display:flex; flex-direction:column; align-items:center; gap:5px;
+  transition:color .15s ease;
+}
+.tab-btn .ico{ width:18px; height:18px; }
+.tab-btn.active{ color:var(--brass); }
+.tab-btn .ico svg{ width:100%; height:100%; stroke:currentColor; fill:none; stroke-width:1.6; }
+
+.view{ display:none; animation:fadein .25s ease; }
+.view.active{ display:block; }
+@keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+.card{
+  background:var(--paper); border:1px solid var(--line); border-radius:3px;
+  padding:18px 18px 20px; margin-bottom:14px;
+}
+.card h2{
+  font-family:var(--font-display); font-weight:500; font-size:16px; margin:0 0 3px;
+}
+.card .sub{ font-family:var(--font-mono); font-size:10.5px; color:var(--ink-faint); margin-bottom:14px; text-transform:uppercase; letter-spacing:.07em;}
+
+.stat-row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:14px; }
+.stat{
+  background:var(--paper-2); border:1px solid var(--line); border-radius:3px; padding:12px 13px;
+}
+.stat .label{ font-family:var(--font-mono); font-size:9.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.07em; margin-bottom:6px; }
+.stat .value{ font-family:var(--font-mono); font-size:19px; font-weight:600; }
+.stat .value.pos{ color:var(--forest); }
+.stat .value.neg{ color:var(--brick); }
+.stat .value.warn{ color:var(--amber); }
+
+.row{ display:flex; gap:10px; }
+.row > *{ flex:1; }
+label{ font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px; }
+input, select{
+  width:100%; background:var(--bg); border:1px solid var(--line-strong); color:var(--ink);
+  padding:9px 10px; border-radius:2px; font-family:var(--font-sans); font-size:13.5px;
+  margin-bottom:11px;
+}
+input:focus, select:focus{ outline:none; border-color:var(--brass); }
+input[type="number"]{ font-family:var(--font-mono); }
+
+button.btn{
+  background:var(--forest-dim); color:var(--ink); border:1px solid var(--forest);
+  padding:10px 16px; border-radius:2px; font-family:var(--font-mono); font-size:12px;
+  letter-spacing:.04em; cursor:pointer; text-transform:uppercase; width:100%;
+}
+button.btn:active{ transform:translateY(1px); }
+button.btn.ghost{ background:none; border:1px solid var(--line-strong); color:var(--ink-dim); }
+button.btn.danger{ background:none; border:1px solid var(--brick); color:var(--brick); }
+
+.legend{ display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; }
+.legend .item{ display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:11px; color:var(--ink-dim); }
+.legend .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+
+.ledger{ border-collapse:collapse; width:100%; font-size:13px; }
+.ledger th{
+  text-align:left; font-family:var(--font-mono); font-size:9.5px; color:var(--ink-faint);
+  text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--line-strong);
+  padding:6px 6px 8px;
+}
+.ledger td{ padding:8px 6px; border-bottom:1px solid var(--line); vertical-align:middle;}
+.ledger td.amt{ font-family:var(--font-mono); text-align:right; white-space:nowrap; }
+.ledger tr:last-child td{ border-bottom:none; }
+.del-x{ background:none; border:none; color:var(--ink-faint); cursor:pointer; font-size:15px; padding:0 4px; }
+.del-x:hover{ color:var(--brick); }
+
+.empty{ text-align:center; padding:30px 10px; color:var(--ink-faint); font-size:13px; font-style:italic; }
+
+.zone-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.zone-card{ background:var(--paper-2); border:1px solid var(--line); border-radius:3px; padding:11px 12px; }
+.zone-card .zname{ font-size:12.5px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;}
+.zone-card .zname a{ font-size:10px; font-family:var(--font-mono); text-decoration:none; color:var(--ink-faint); border:1px solid var(--line-strong); padding:2px 6px; border-radius:20px;}
+.zone-card input{ margin-bottom:0; }
+
+.pill{ display:inline-block; font-family:var(--font-mono); font-size:9.5px; padding:2px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:.05em; }
+.pill.alerta{ background:rgba(184,101,74,0.15); color:var(--brick); border:1px solid rgba(184,101,74,0.4); }
+.pill.atencao{ background:rgba(212,162,76,0.15); color:var(--amber); border:1px solid rgba(212,162,76,0.4); }
+.pill.ok{ background:rgba(76,138,114,0.15); color:var(--forest); border:1px solid rgba(76,138,114,0.4); }
+
+.sugg-item{ display:flex; gap:12px; padding:14px 0; border-bottom:1px solid var(--line); }
+.sugg-item:last-child{ border-bottom:none; }
+.sugg-item .mark{ font-family:var(--font-mono); font-size:10px; color:var(--ink-faint); padding-top:2px; min-width:26px; }
+.sugg-item .body h3{ font-size:13.5px; margin:0 0 4px; font-weight:600; }
+.sugg-item .body p{ font-size:12.5px; color:var(--ink-dim); margin:0; line-height:1.5; }
+
+.tabs-inner{ display:flex; gap:6px; margin-bottom:14px; }
+.tabs-inner button{
+  background:none; border:1px solid var(--line-strong); color:var(--ink-dim);
+  font-family:var(--font-mono); font-size:11px; padding:6px 12px; border-radius:20px; cursor:pointer;
+}
+.tabs-inner button.active{ border-color:var(--brass); color:var(--brass); }
+
+.month-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.month-nav .m{ font-family:var(--font-mono); font-size:13px; text-transform:capitalize; }
+.month-nav button{ background:none; border:1px solid var(--line-strong); color:var(--ink-dim); width:30px; height:30px; border-radius:50%; cursor:pointer; font-size:15px;}
+
+svg.chart{ width:100%; height:auto; display:block; }
+.axis-label{ font-family:var(--font-mono); font-size:9px; fill:var(--ink-faint); }
+
+.foot-note{ font-family:var(--font-mono); font-size:10.5px; color:var(--ink-faint); text-align:center; margin-top:24px; line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="masthead">
+    <div class="brand">
+      <small>Lente Viva &middot; Registo Pessoal</small>
+      <h1>Extrato</h1>
+    </div>
+    <div class="date-stamp" id="todayStamp"></div>
+  </div>
+
+  <!-- GERAL -->
+  <div class="view active" id="view-geral">
+    <div class="month-nav">
+      <button onclick="shiftMonth(-1)">‹</button>
+      <div class="m" id="geralMonthLabel"></div>
+      <button onclick="shiftMonth(1)">›</button>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat"><div class="label">Rendimento</div><div class="value" id="statIncome">€0</div></div>
+      <div class="stat"><div class="label">Custos</div><div class="value" id="statCosts">€0</div></div>
+      <div class="stat"><div class="label">Saldo</div><div class="value" id="statBalance">€0</div></div>
+      <div class="stat"><div class="label">Poupança</div><div class="value" id="statSavingsRate">0%</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Rendimento vs. Custos</h2>
+      <div class="sub">Últimos 6 meses</div>
+      <div id="chartIncomeVsCost"></div>
+      <div class="legend">
+        <span class="item"><span class="dot" style="background:var(--forest)"></span>Rendimento</span>
+        <span class="item"><span class="dot" style="background:var(--brick)"></span>Custos</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Registar rendimento</h2>
+      <div class="sub">Mês selecionado: <span id="incomeMonthTag"></span></div>
+      <label>Fonte</label>
+      <input id="incSource" placeholder="Salário, freelance, outro...">
+      <div class="row">
+        <div><label>Valor (€)</label><input id="incAmount" type="number" step="0.01" placeholder="0.00"></div>
+      </div>
+      <button class="btn" onclick="addIncome()">Adicionar rendimento</button>
+    </div>
+
+    <div class="card">
+      <h2>Rendimentos do mês</h2>
+      <table class="ledger" id="incomeTable"></table>
+    </div>
+  </div>
+
+  <!-- CUSTOS -->
+  <div class="view" id="view-custos">
+    <div class="month-nav">
+      <button onclick="shiftMonth(-1)">‹</button>
+      <div class="m" id="custosMonthLabel"></div>
+      <button onclick="shiftMonth(1)">›</button>
+    </div>
+
+    <div class="card">
+      <h2>Novo custo</h2>
+      <div class="row">
+        <div>
+          <label>Categoria</label>
+          <select id="expCategory">
+            <option>Habitação</option>
+            <option>Alimentação</option>
+            <option>Transporte</option>
+            <option>Água</option>
+            <option>Gás/Eletricidade</option>
+            <option>Saúde</option>
+            <option>Subscrições</option>
+            <option>Lazer</option>
+            <option>Outros</option>
+          </select>
+        </div>
+        <div><label>Valor (€)</label><input id="expAmount" type="number" step="0.01" placeholder="0.00"></div>
+      </div>
+      <label>Descrição</label>
+      <input id="expDesc" placeholder="Renda, supermercado, ginásio...">
+      <button class="btn" onclick="addExpense()">Adicionar custo</button>
+    </div>
+
+    <div class="card">
+      <h2>Distribuição por categoria</h2>
+      <div class="sub" id="custosSub">—</div>
+      <div id="chartDonut"></div>
+      <div class="legend" id="donutLegend"></div>
+    </div>
+
+    <div class="card">
+      <h2>Registo de custos</h2>
+      <table class="ledger" id="expenseTable"></table>
+    </div>
+  </div>
+
+  <!-- MERCADO -->
+  <div class="view" id="view-mercado">
+    <div class="card">
+      <h2>Análise semanal de mercado</h2>
+      <div class="sub">Renda T1 — Grande Lisboa, e custo médio de alimentação / água / gás</div>
+
+      <label>Semana</label>
+      <input id="marketWeek" type="date">
+
+      <div class="zone-grid" id="zoneInputs"></div>
+
+      <div class="row" style="margin-top:11px;">
+        <div><label>Alimentação (média €/mês)</label><input id="mFood" type="number" step="1"></div>
+        <div><label>Gás/Elet. (média €/mês)</label><input id="mGas" type="number" step="1"></div>
+      </div>
+      <div class="row">
+        <div><label>Água (média €/mês)</label><input id="mWater" type="number" step="1"></div>
+        <div></div>
+      </div>
+      <button class="btn" onclick="addMarketEntry()">Guardar análise da semana</button>
+    </div>
+
+    <div class="card">
+      <h2>Tendência de rendas por zona</h2>
+      <div class="sub">Últimas entradas registadas</div>
+      <div id="chartMarketTrend"></div>
+      <div class="legend" id="marketLegend"></div>
+    </div>
+
+    <div class="card">
+      <h2>Histórico</h2>
+      <table class="ledger" id="marketTable"></table>
+    </div>
+  </div>
+
+  <!-- SUGESTOES -->
+  <div class="view" id="view-sugestoes">
+    <div class="card">
+      <h2>Estado financeiro</h2>
+      <div class="sub">Análise automática com base nos teus registos, atualizada hoje</div>
+      <div class="stat-row">
+        <div class="stat"><div class="label">Taxa de poupança</div><div class="value" id="suggSavings">0%</div></div>
+        <div class="stat"><div class="label">Peso da habitação</div><div class="value" id="suggHousing">0%</div></div>
+        <div class="stat"><div class="label">Estado geral</div><div class="value" id="suggStatus">—</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Sugestões de hoje</h2>
+      <div id="suggList"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-view="geral" onclick="switchTab('geral')">
+    <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg></span>Geral
+  </button>
+  <button class="tab-btn" data-view="custos" onclick="switchTab('custos')">
+    <span class="ico"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M4 19h16"/></svg></span>Custos
+  </button>
+  <button class="tab-btn" data-view="mercado" onclick="switchTab('mercado')">
+    <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V10l7-6 7 6v11M9 21v-6h6v6"/></svg></span>Mercado
+  </button>
+  <button class="tab-btn" data-view="sugestoes" onclick="switchTab('sugestoes')">
+    <span class="ico"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2zM9 21h6"/></svg></span>Sugestões
+  </button>
+</div>
+
+<script>
+/* ============ ESTADO / STORAGE ============ */
+const KEYS = { income:'lv_fin_income', expenses:'lv_fin_expenses', market:'lv_fin_market' };
+function load(key){ try{ return JSON.parse(localStorage.getItem(key)) || []; }catch(e){ return []; } }
+function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+let incomes = load(KEYS.income);
+let expenses = load(KEYS.expenses);
+let market = load(KEYS.market);
+
+const DEFAULT_ZONES = ['Lisboa (centro)','Amadora','Oeiras','Sintra','Loures'];
+
+let currentMonth = new Date(); currentMonth.setDate(1);
+
+const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const CAT_COLORS = {
+  'Habitação':'#c9a876','Alimentação':'#4c8a72','Transporte':'#7a95b0',
+  'Água':'#6ab0c9','Gás/Eletricidade':'#d4a24c','Saúde':'#b8654a',
+  'Subscrições':'#9a7fc9','Lazer':'#c98fa6','Outros':'#6b746e'
+};
+
+function fmtEUR(n){ return (Math.round(n*100)/100).toLocaleString('pt-PT',{style:'currency',currency:'EUR'}); }
+function monthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function inMonth(dateStr, d){ return dateStr.slice(0,7) === monthKey(d); }
+
+/* ============ NAV ============ */
+function switchTab(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
+  if(name==='sugestoes') renderSuggestions();
+  if(name==='mercado') renderMarket();
+}
+function shiftMonth(delta){
+  currentMonth.setMonth(currentMonth.getMonth()+delta);
+  renderAll();
+}
+
+/* ============ RENDIMENTOS ============ */
+function addIncome(){
+  const source = document.getElementById('incSource').value.trim() || 'Rendimento';
+  const amount = parseFloat(document.getElementById('incAmount').value);
+  if(!amount || amount<=0){ return; }
+  incomes.push({ id:Date.now(), date: monthKey(currentMonth)+'-01', source, amount });
+  save(KEYS.income, incomes);
+  document.getElementById('incSource').value=''; document.getElementById('incAmount').value='';
+  renderAll();
+}
+function removeIncome(id){ incomes = incomes.filter(i=>i.id!==id); save(KEYS.income, incomes); renderAll(); }
+
+/* ============ CUSTOS ============ */
+function addExpense(){
+  const category = document.getElementById('expCategory').value;
+  const desc = document.getElementById('expDesc').value.trim() || category;
+  const amount = parseFloat(document.getElementById('expAmount').value);
+  if(!amount || amount<=0){ return; }
+  expenses.push({ id:Date.now(), date: monthKey(currentMonth)+'-'+String(new Date().getDate()).padStart(2,'0'), category, desc, amount });
+  save(KEYS.expenses, expenses);
+  document.getElementById('expDesc').value=''; document.getElementById('expAmount').value='';
+  renderAll();
+}
+function removeExpense(id){ expenses = expenses.filter(e=>e.id!==id); save(KEYS.expenses, expenses); renderAll(); }
+
+/* ============ MERCADO ============ */
+function buildZoneInputs(){
+  const wrap = document.getElementById('zoneInputs');
+  wrap.innerHTML = DEFAULT_ZONES.map((z,i)=>`
+    <div class="zone-card">
+      <div class="zname"><span>${z}</span><a href="https://www.idealista.pt/arrendar-casas/${encodeURIComponent(z.split(' ')[0].toLowerCase())}/com-t1/" target="_blank" rel="noopener">pesquisar ↗</a></div>
+      <input type="number" step="10" id="zone-${i}" placeholder="€ / mês">
+    </div>`).join('');
+}
+function addMarketEntry(){
+  const week = document.getElementById('marketWeek').value || new Date().toISOString().slice(0,10);
+  const zones = DEFAULT_ZONES.map((z,i)=>({ name:z, rent: parseFloat(document.getElementById('zone-'+i).value)||null }));
+  const food = parseFloat(document.getElementById('mFood').value)||null;
+  const gas = parseFloat(document.getElementById('mGas').value)||null;
+  const water = parseFloat(document.getElementById('mWater').value)||null;
+  if(zones.every(z=>z.rent===null) && !food && !gas && !water){ return; }
+  market.push({ id:Date.now(), week, zones, food, gas, water });
+  market.sort((a,b)=> a.week.localeCompare(b.week));
+  save(KEYS.market, market);
+  renderMarket();
+}
+function removeMarket(id){ market = market.filter(m=>m.id!==id); save(KEYS.market, market); renderMarket(); }
+
+/* ============ SVG CHART HELPERS ============ */
+function svgEl(w,h,inner){ return `<svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`; }
+
+function groupedBarChart(labels, seriesA, seriesB, colorA, colorB){
+  const w=600, h=240, padL=44, padB=26, padT=10, padR=10;
+  const maxVal = Math.max(1, ...seriesA, ...seriesB);
+  const plotW = w-padL-padR, plotH = h-padT-padB;
+  const groupW = plotW/labels.length;
+  const barW = Math.min(20, groupW*0.32);
+  let bars='', axis='';
+  for(let i=0;i<5;i++){
+    const y = padT + plotH - (plotH*i/4);
+    axis += `<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
+    axis += `<text x="${padL-6}" y="${y+3}" text-anchor="end" class="axis-label">${Math.round(maxVal*i/4)}</text>`;
+  }
+  labels.forEach((lab,i)=>{
+    const cx = padL + groupW*i + groupW/2;
+    const hA = (seriesA[i]/maxVal)*plotH; const hB = (seriesB[i]/maxVal)*plotH;
+    bars += `<rect x="${cx-barW-2}" y="${padT+plotH-hA}" width="${barW}" height="${hA}" fill="${colorA}" rx="1"/>`;
+    bars += `<rect x="${cx+2}" y="${padT+plotH-hB}" width="${barW}" height="${hB}" fill="${colorB}" rx="1"/>`;
+    bars += `<text x="${cx}" y="${h-8}" text-anchor="middle" class="axis-label">${lab}</text>`;
+  });
+  return svgEl(w,h, axis+bars);
+}
+
+function donutChart(data){
+  // data: [{label, value, color}]
+  const w=280, h=220, cx=110, cy=110, rOuter=88, rInner=52;
+  const total = data.reduce((s,d)=>s+d.value,0) || 1;
+  let angle=-Math.PI/2, paths='';
+  data.forEach(d=>{
+    const frac = d.value/total;
+    const a2 = angle + frac*Math.PI*2;
+    const x1=cx+rOuter*Math.cos(angle), y1=cy+rOuter*Math.sin(angle);
+    const x2=cx+rOuter*Math.cos(a2), y2=cy+rOuter*Math.sin(a2);
+    const xi1=cx+rInner*Math.cos(a2), yi1=cy+rInner*Math.sin(a2);
+    const xi2=cx+rInner*Math.cos(angle), yi2=cy+rInner*Math.sin(angle);
+    const large = frac>0.5?1:0;
+    paths += `<path d="M${x1},${y1} A${rOuter},${rOuter} 0 ${large} 1 ${x2},${y2} L${xi1},${yi1} A${rInner},${rInner} 0 ${large} 0 ${xi2},${yi2} Z" fill="${d.color}"/>`;
+    angle = a2;
+  });
+  const centerLabel = `<text x="${cx}" y="${cy-2}" text-anchor="middle" class="axis-label" font-size="9">TOTAL</text><text x="${cx}" y="${cy+13}" text-anchor="middle" fill="var(--ink)" font-family="var(--font-mono)" font-size="13" font-weight="600">${fmtEUR(total)}</text>`;
+  return svgEl(w,h, `<g transform="translate(${(w-220)/2 - cx + 110},0)">` + paths + centerLabel + `</g>`);
+}
+
+function multiLineChart(labels, series /* [{name,color,values}] */){
+  const w=600, h=240, padL=44, padB=26, padT=10, padR=10;
+  const allVals = series.flatMap(s=>s.values.filter(v=>v!==null));
+  const maxVal = Math.max(1, ...allVals);
+  const plotW=w-padL-padR, plotH=h-padT-padB;
+  const stepX = labels.length>1 ? plotW/(labels.length-1) : 0;
+  let axis='', lines='';
+  for(let i=0;i<5;i++){
+    const y = padT + plotH - (plotH*i/4);
+    axis += `<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
+    axis += `<text x="${padL-6}" y="${y+3}" text-anchor="end" class="axis-label">${Math.round(maxVal*i/4)}</text>`;
+  }
+  labels.forEach((lab,i)=>{
+    axis += `<text x="${padL+stepX*i}" y="${h-8}" text-anchor="middle" class="axis-label">${lab}</text>`;
+  });
+  series.forEach(s=>{
+    let pts=[]; let d='';
+    s.values.forEach((v,i)=>{
+      if(v===null) return;
+      const x = padL+stepX*i; const y = padT+plotH-(v/maxVal)*plotH;
+      d += (d===''?'M':'L')+x+','+y+' ';
+      pts.push(`<circle cx="${x}" cy="${y}" r="3" fill="${s.color}"/>`);
+    });
+    lines += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2"/>` + pts.join('');
+  });
+  return svgEl(w,h, axis+lines);
+}
+
+/* ============ RENDER: GERAL ============ */
+function renderGeral(){
+  document.getElementById('todayStamp').textContent = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  document.getElementById('geralMonthLabel').textContent = MESES[currentMonth.getMonth()]+' '+currentMonth.getFullYear();
+  document.getElementById('incomeMonthTag').textContent = MESES[currentMonth.getMonth()]+' '+currentMonth.getFullYear();
+
+  const mInc = incomes.filter(i=>inMonth(i.date, currentMonth));
+  const mExp = expenses.filter(e=>inMonth(e.date, currentMonth));
+  const totalInc = mInc.reduce((s,i)=>s+i.amount,0);
+  const totalExp = mExp.reduce((s,e)=>s+e.amount,0);
+  const balance = totalInc-totalExp;
+  const rate = totalInc>0 ? (balance/totalInc*100) : 0;
+
+  document.getElementById('statIncome').textContent = fmtEUR(totalInc);
+  document.getElementById('statCosts').textContent = fmtEUR(totalExp);
+  const balEl = document.getElementById('statBalance');
+  balEl.textContent = fmtEUR(balance);
+  balEl.className = 'value ' + (balance>=0?'pos':'neg');
+  const rateEl = document.getElementById('statSavingsRate');
+  rateEl.textContent = Math.round(rate)+'%';
+  rateEl.className = 'value ' + (rate>=20?'pos':rate>=0?'warn':'neg');
+
+  // last 6 months chart
+  const labels=[], seriesInc=[], seriesExp=[];
+  for(let i=5;i>=0;i--){
+    const d = new Date(currentMonth); d.setMonth(d.getMonth()-i);
+    labels.push(MESES[d.getMonth()].slice(0,3));
+    seriesInc.push(incomes.filter(x=>inMonth(x.date,d)).reduce((s,x)=>s+x.amount,0));
+    seriesExp.push(expenses.filter(x=>inMonth(x.date,d)).reduce((s,x)=>s+x.amount,0));
+  }
+  document.getElementById('chartIncomeVsCost').innerHTML = groupedBarChart(labels, seriesInc, seriesExp, 'var(--forest)', 'var(--brick)');
+
+  // income table
+  const incTable = document.getElementById('incomeTable');
+  if(mInc.length===0){
+    incTable.innerHTML = `<tr><td class="empty">Sem rendimentos registados este mês.</td></tr>`;
+  } else {
+    incTable.innerHTML = `<tr><th>Fonte</th><th style="text-align:right">Valor</th><th></th></tr>` +
+      mInc.map(i=>`<tr><td>${i.source}</td><td class="amt">${fmtEUR(i.amount)}</td><td style="text-align:right"><button class="del-x" onclick="removeIncome(${i.id})">×</button></td></tr>`).join('');
+  }
+}
+
+/* ============ RENDER: CUSTOS ============ */
+function renderCustos(){
+  document.getElementById('custosMonthLabel').textContent = MESES[currentMonth.getMonth()]+' '+currentMonth.getFullYear();
+  const mExp = expenses.filter(e=>inMonth(e.date, currentMonth));
+  const totalExp = mExp.reduce((s,e)=>s+e.amount,0);
+  document.getElementById('custosSub').textContent = totalExp>0 ? fmtEUR(totalExp)+' no total' : 'Sem custos registados';
+
+  const byCat = {};
+  mExp.forEach(e=>{ byCat[e.category] = (byCat[e.category]||0) + e.amount; });
+  const donutData = Object.keys(byCat).map(k=>({label:k, value:byCat[k], color:CAT_COLORS[k]||'#888'}));
+  document.getElementById('chartDonut').innerHTML = donutData.length ? donutChart(donutData) : '<div class="empty">Adiciona custos para ver a distribuição.</div>';
+  document.getElementById('donutLegend').innerHTML = donutData.map(d=>`<span class="item"><span class="dot" style="background:${d.color}"></span>${d.label} — ${fmtEUR(d.value)}</span>`).join('');
+
+  const table = document.getElementById('expenseTable');
+  if(mExp.length===0){
+    table.innerHTML = `<tr><td class="empty">Sem custos registados este mês.</td></tr>`;
+  } else {
+    table.innerHTML = `<tr><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th><th></th></tr>` +
+      mExp.slice().reverse().map(e=>`<tr><td>${e.desc}</td><td><span style="color:${CAT_COLORS[e.category]||'#888'}">${e.category}</span></td><td class="amt">${fmtEUR(e.amount)}</td><td style="text-align:right"><button class="del-x" onclick="removeExpense(${e.id})">×</button></td></tr>`).join('');
+  }
+}
+
+/* ============ RENDER: MERCADO ============ */
+function renderMarket(){
+  buildZoneInputs();
+  const table = document.getElementById('marketTable');
+  if(market.length===0){
+    table.innerHTML = `<tr><td class="empty">Ainda sem análises de mercado registadas.</td></tr>`;
+    document.getElementById('chartMarketTrend').innerHTML = '<div class="empty">Regista pelo menos duas semanas para ver a tendência.</div>';
+    document.getElementById('marketLegend').innerHTML='';
+    return;
+  }
+  const recent = market.slice(-8);
+  const labels = recent.map(m=>m.week.slice(5));
+  const colors = ['#c9a876','#4c8a72','#7a95b0','#d4a24c','#b8654a'];
+  const series = DEFAULT_ZONES.map((z,i)=>({
+    name:z, color:colors[i%colors.length],
+    values: recent.map(m=>{ const zz=m.zones.find(x=>x.name===z); return zz&&zz.rent!==null ? zz.rent : null; })
+  }));
+  document.getElementById('chartMarketTrend').innerHTML = multiLineChart(labels, series);
+  document.getElementById('marketLegend').innerHTML = series.map(s=>`<span class="item"><span class="dot" style="background:${s.color}"></span>${s.name}</span>`).join('');
+
+  table.innerHTML = `<tr><th>Semana</th><th>Rendas (méd.)</th><th>Alim./Gás/Água</th><th></th></tr>` +
+    recent.slice().reverse().map(m=>{
+      const rents = m.zones.filter(z=>z.rent!==null);
+      const avg = rents.length ? Math.round(rents.reduce((s,z)=>s+z.rent,0)/rents.length) : '—';
+      const fga = [m.food,m.gas,m.water].map(v=>v!==null&&v!==undefined?'€'+v:'—').join(' / ');
+      return `<tr><td>${m.week}</td><td class="amt">${avg!=='—'?'€'+avg:'—'}</td><td class="amt">${fga}</td><td style="text-align:right"><button class="del-x" onclick="removeMarket(${m.id})">×</button></td></tr>`;
+    }).join('');
+}
+
+/* ============ SUGESTÕES (motor de regras) ============ */
+function renderSuggestions(){
+  const mInc = incomes.filter(i=>inMonth(i.date, currentMonth));
+  const mExp = expenses.filter(e=>inMonth(e.date, currentMonth));
+  const totalInc = mInc.reduce((s,i)=>s+i.amount,0);
+  const totalExp = mExp.reduce((s,e)=>s+e.amount,0);
+  const balance = totalInc-totalExp;
+  const rate = totalInc>0 ? (balance/totalInc*100) : null;
+  const housing = mExp.filter(e=>e.category==='Habitação').reduce((s,e)=>s+e.amount,0);
+  const housingPct = totalInc>0 ? (housing/totalInc*100) : null;
+
+  document.getElementById('suggSavings').textContent = rate!==null ? Math.round(rate)+'%' : '—';
+  document.getElementById('suggHousing').textContent = housingPct!==null ? Math.round(housingPct)+'%' : '—';
+
+  const suggestions = [];
+
+  if(totalInc===0){
+    suggestions.push({sev:'atencao', title:'Regista o teu rendimento', text:'Ainda não há rendimento registado para este mês. Adiciona-o na aba Geral para a análise ficar completa.'});
+  } else if(rate<0){
+    suggestions.push({sev:'alerta', title:'Estás a gastar mais do que ganhas', text:`Este mês o saldo é ${fmtEUR(balance)}. Revê os custos com maior peso na aba Custos e corta o que for dispensável já esta semana.`});
+  } else if(rate<10){
+    suggestions.push({sev:'atencao', title:'Taxa de poupança baixa', text:`Estás a poupar ${Math.round(rate)}% do rendimento. O objetivo saudável ronda os 20%. Vê se consegues reduzir uma categoria de custo variável.`});
+  } else if(rate<20){
+    suggestions.push({sev:'atencao', title:'Quase lá', text:`Taxa de poupança de ${Math.round(rate)}%. Estás no bom caminho — mais um pequeno esforço e chegas aos 20% recomendados.`});
+  } else {
+    suggestions.push({sev:'ok', title:'Taxa de poupança saudável', text:`Estás a poupar ${Math.round(rate)}% do rendimento este mês. Continua assim e considera destinar o excedente a um fundo de emergência ou investimento.`});
+  }
+
+  if(housingPct!==null && housingPct>0){
+    if(housingPct>35){
+      suggestions.push({sev:'alerta', title:'Habitação a pesar demasiado', text:`A habitação representa ${Math.round(housingPct)}% do rendimento — acima da regra dos 30%. Compara com as zonas na aba Mercado para avaliar alternativas.`});
+    } else if(housingPct>30){
+      suggestions.push({sev:'atencao', title:'Habitação no limite', text:`${Math.round(housingPct)}% do rendimento vai para habitação, ligeiramente acima do recomendado (30%).`});
+    }
+  }
+
+  // comparação com mercado
+  if(market.length>0){
+    const last = market[market.length-1];
+    const foodExp = mExp.filter(e=>e.category==='Alimentação').reduce((s,e)=>s+e.amount,0);
+    if(last.food && foodExp>0 && foodExp > last.food*1.25){
+      suggestions.push({sev:'atencao', title:'Alimentação acima da média', text:`Gastas ${fmtEUR(foodExp)} em alimentação, acima da média que registaste no mercado (${fmtEUR(last.food)}). Vale a pena rever compras e desperdício.`});
+    }
+    const gasExp = mExp.filter(e=>e.category==='Gás/Eletricidade').reduce((s,e)=>s+e.amount,0);
+    if(last.gas && gasExp>0 && gasExp > last.gas*1.25){
+      suggestions.push({sev:'atencao', title:'Gás/Eletricidade acima da média', text:`Gastas ${fmtEUR(gasExp)}, acima da média de mercado (${fmtEUR(last.gas)}). Confirma o tarifário e horas de consumo.`});
+    }
+    const validRents = last.zones.filter(z=>z.rent!==null);
+    if(housing>0 && validRents.length){
+      const minZone = validRents.reduce((a,b)=> a.rent<b.rent?a:b);
+      if(housing > minZone.rent*1.15){
+        suggestions.push({sev:'atencao', title:'Zona mais em conta disponível', text:`Pagas ${fmtEUR(housing)} em habitação. ${minZone.name} tem rendas T1 à volta de ${fmtEUR(minZone.rent)} na tua última análise de mercado.`});
+      }
+    }
+  } else {
+    suggestions.push({sev:'atencao', title:'Sem dados de mercado ainda', text:'Preenche a aba Mercado esta semana para comparares a tua renda e despesas fixas com a média da Grande Lisboa.'});
+  }
+
+  // atividade recente
+  const lastExpenseDate = expenses.length ? expenses.map(e=>e.date).sort().pop() : null;
+  if(lastExpenseDate){
+    const days = Math.floor((new Date()-new Date(lastExpenseDate))/86400000);
+    if(days>=5){
+      suggestions.push({sev:'atencao', title:'Registos por atualizar', text:`Já não registas custos há ${days} dias. Mantém o hábito diário para as sugestões refletirem a realidade.`});
+    }
+  }
+
+  const statusEl = document.getElementById('suggStatus');
+  const hasAlerta = suggestions.some(s=>s.sev==='alerta');
+  const hasAtencao = suggestions.some(s=>s.sev==='atencao');
+  statusEl.textContent = hasAlerta ? 'Alerta' : hasAtencao ? 'Atenção' : 'Estável';
+  statusEl.className = 'value ' + (hasAlerta?'neg':hasAtencao?'warn':'pos');
+
+  const order = {alerta:0, atencao:1, ok:2};
+  suggestions.sort((a,b)=>order[a.sev]-order[b.sev]);
+
+  document.getElementById('suggList').innerHTML = suggestions.map((s,i)=>`
+    <div class="sugg-item">
+      <div class="mark"><span class="pill ${s.sev}">${s.sev}</span></div>
+      <div class="body"><h3>${s.title}</h3><p>${s.text}</p></div>
+    </div>`).join('');
+}
+
+/* ============ INIT ============ */
+function renderAll(){ renderGeral(); renderCustos(); }
+renderAll();
+buildZoneInputs();
+document.getElementById('marketWeek').valueAsDate = new Date();
+</script>
+</body>
+</html>
