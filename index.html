@@ -266,7 +266,48 @@ svg.chart{ width:100%; height:auto; display:block; }
       </div>
       <label>Descrição</label>
       <input id="expDesc" placeholder="Renda, supermercado, ginásio...">
+      <label>Forma de pagamento</label>
+      <select id="expMethod">
+        <option value="conta">Cartão / Conta bancária</option>
+        <option value="dinheiro">Dinheiro</option>
+      </select>
       <button class="btn" onclick="addExpense()">Adicionar custo</button>
+    </div>
+
+    <div class="card">
+      <h2>Custos fixos</h2>
+      <div class="sub">Lançados automaticamente todos os meses, no dia indicado</div>
+      <div class="row">
+        <div>
+          <label>Categoria</label>
+          <select id="fxCategory">
+            <option>Habitação</option>
+            <option>Alimentação</option>
+            <option>Transporte</option>
+            <option>Água</option>
+            <option>Gás/Eletricidade</option>
+            <option>Saúde</option>
+            <option>Subscrições</option>
+            <option>Lazer</option>
+            <option>Outros</option>
+          </select>
+        </div>
+        <div><label>Valor (€)</label><input id="fxAmount" type="number" step="0.01" placeholder="0.00"></div>
+      </div>
+      <label>Descrição</label>
+      <input id="fxDesc" placeholder="Renda, ginásio, streaming...">
+      <div class="row">
+        <div><label>Dia do mês</label><input id="fxDay" type="number" min="1" max="31" placeholder="Ex: 8"></div>
+        <div>
+          <label>Forma de pagamento</label>
+          <select id="fxMethod">
+            <option value="conta">Cartão / Conta bancária</option>
+            <option value="dinheiro">Dinheiro</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn ghost" onclick="addFixedCost()">Adicionar custo fixo</button>
+      <table class="ledger" id="fixedTable" style="margin-top:14px;"></table>
     </div>
 
     <div class="card">
@@ -317,6 +358,31 @@ svg.chart{ width:100%; height:auto; display:block; }
     </div>
   </div>
 
+  <!-- CARTEIRA -->
+  <div class="view" id="view-carteira">
+    <div class="stat-row">
+      <div class="stat"><div class="label">Valor na conta</div><div class="value" id="walletConta">€0</div></div>
+      <div class="stat"><div class="label">Dinheiro vivo</div><div class="value" id="walletDinheiro">€0</div></div>
+      <div class="stat"><div class="label">Total</div><div class="value" id="walletTotal">€0</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Atualizar saldo</h2>
+      <div class="sub">Define o valor atual — os custos vão sendo descontados automaticamente consoante a forma de pagamento</div>
+      <div class="row">
+        <div><label>Valor na conta (€)</label><input id="inputContaSaldo" type="number" step="0.01"></div>
+        <div><label>Dinheiro vivo (€)</label><input id="inputDinheiroSaldo" type="number" step="0.01"></div>
+      </div>
+      <button class="btn" onclick="updateWalletBalances()">Guardar saldo</button>
+    </div>
+
+    <div class="card">
+      <h2>Movimentos recentes</h2>
+      <div class="sub">Custos descontados automaticamente da conta ou do dinheiro vivo</div>
+      <table class="ledger" id="walletMovTable"></table>
+    </div>
+  </div>
+
   <!-- SUGESTOES -->
   <div class="view" id="view-sugestoes">
     <div class="card">
@@ -347,6 +413,9 @@ svg.chart{ width:100%; height:auto; display:block; }
   <button class="tab-btn" data-view="mercado" onclick="switchTab('mercado')">
     <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V10l7-6 7 6v11M9 21v-6h6v6"/></svg></span>Mercado
   </button>
+  <button class="tab-btn" data-view="carteira" onclick="switchTab('carteira')">
+    <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h12l3 3v11a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/><path d="M16 12h3"/></svg></span>Carteira
+  </button>
   <button class="tab-btn" data-view="sugestoes" onclick="switchTab('sugestoes')">
     <span class="ico"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2zM9 21h6"/></svg></span>Sugestões
   </button>
@@ -354,13 +423,17 @@ svg.chart{ width:100%; height:auto; display:block; }
 
 <script>
 /* ============ ESTADO / STORAGE ============ */
-const KEYS = { income:'lv_fin_income', expenses:'lv_fin_expenses', market:'lv_fin_market' };
+const KEYS = { income:'lv_fin_income', expenses:'lv_fin_expenses', market:'lv_fin_market', fixed:'lv_fin_fixed', wallet:'lv_fin_wallet' };
 function load(key){ try{ return JSON.parse(localStorage.getItem(key)) || []; }catch(e){ return []; } }
 function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
 
 let incomes = load(KEYS.income);
 let expenses = load(KEYS.expenses);
 let market = load(KEYS.market);
+let fixedCosts = load(KEYS.fixed);
+let wallet = Object.assign({conta:0, dinheiro:0}, JSON.parse(localStorage.getItem(KEYS.wallet)||'{}'));
+function saveWallet(){ localStorage.setItem(KEYS.wallet, JSON.stringify(wallet)); }
+function saveFixed(){ save(KEYS.fixed, fixedCosts); }
 
 const DEFAULT_ZONES = ['Lisboa (centro)','Amadora','Oeiras','Sintra','Loures'];
 
@@ -384,9 +457,12 @@ function switchTab(name){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
   if(name==='sugestoes') renderSuggestions();
   if(name==='mercado') renderMarket();
+  if(name==='carteira') renderWallet();
+  if(name==='custos') renderFixedList();
 }
 function shiftMonth(delta){
   currentMonth.setMonth(currentMonth.getMonth()+delta);
+  ensureFixedGenerated(currentMonth);
   renderAll();
 }
 
@@ -395,7 +471,7 @@ function addIncome(){
   const source = document.getElementById('incSource').value.trim() || 'Rendimento';
   const amount = parseFloat(document.getElementById('incAmount').value);
   if(!amount || amount<=0){ return; }
-  incomes.push({ id:Date.now(), date: monthKey(currentMonth)+'-01', source, amount });
+  incomes.push({ id:'in-'+Date.now(), date: monthKey(currentMonth)+'-01', source, amount });
   save(KEYS.income, incomes);
   document.getElementById('incSource').value=''; document.getElementById('incAmount').value='';
   renderAll();
@@ -407,13 +483,102 @@ function addExpense(){
   const category = document.getElementById('expCategory').value;
   const desc = document.getElementById('expDesc').value.trim() || category;
   const amount = parseFloat(document.getElementById('expAmount').value);
+  const account = document.getElementById('expMethod').value;
   if(!amount || amount<=0){ return; }
-  expenses.push({ id:Date.now(), date: monthKey(currentMonth)+'-'+String(new Date().getDate()).padStart(2,'0'), category, desc, amount });
+  expenses.push({ id:'e-'+Date.now(), date: monthKey(currentMonth)+'-'+String(new Date().getDate()).padStart(2,'0'), category, desc, amount, account });
+  wallet[account] = Math.round((wallet[account]-amount)*100)/100; saveWallet();
   save(KEYS.expenses, expenses);
   document.getElementById('expDesc').value=''; document.getElementById('expAmount').value='';
-  renderAll();
+  renderAll(); renderWallet();
 }
-function removeExpense(id){ expenses = expenses.filter(e=>e.id!==id); save(KEYS.expenses, expenses); renderAll(); }
+function removeExpense(id){
+  const e = expenses.find(x=>x.id===id); if(!e) return;
+  if(e.account){ wallet[e.account] = Math.round((wallet[e.account]+e.amount)*100)/100; saveWallet(); }
+  expenses = expenses.filter(x=>x.id!==id);
+  save(KEYS.expenses, expenses);
+  renderAll(); renderWallet();
+}
+
+/* ============ CUSTOS FIXOS ============ */
+function addFixedCost(){
+  const category = document.getElementById('fxCategory').value;
+  const desc = document.getElementById('fxDesc').value.trim() || category;
+  const amount = parseFloat(document.getElementById('fxAmount').value);
+  const day = Math.min(31, Math.max(1, parseInt(document.getElementById('fxDay').value) || 1));
+  const account = document.getElementById('fxMethod').value;
+  if(!amount || amount<=0){ return; }
+  fixedCosts.push({ id:'fx-'+Date.now(), desc, category, amount, day, account, active:true, appliedMonths:[] });
+  saveFixed();
+  document.getElementById('fxDesc').value=''; document.getElementById('fxAmount').value=''; document.getElementById('fxDay').value='';
+  ensureFixedGenerated(currentMonth);
+  renderFixedList(); renderAll(); renderWallet();
+}
+function removeFixedCost(id){ fixedCosts = fixedCosts.filter(f=>f.id!==id); saveFixed(); renderFixedList(); }
+
+function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+
+function ensureFixedGenerated(monthDate){
+  const today = new Date();
+  const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  if(monthStart > todayStart) return;
+  const mk = monthKey(monthDate);
+  let changed=false;
+  fixedCosts.forEach(fc=>{
+    if(!fc.active || fc.appliedMonths.includes(mk)) return;
+    const day = Math.min(fc.day, daysInMonth(monthDate.getFullYear(), monthDate.getMonth()));
+    const dateStr = mk+'-'+String(day).padStart(2,'0');
+    const expId = 'fxexp-'+fc.id+'-'+mk;
+    expenses.push({ id:expId, date:dateStr, category:fc.category, desc:fc.desc+' (fixo)', amount:fc.amount, account:fc.account, fixedId:fc.id });
+    wallet[fc.account] = Math.round((wallet[fc.account]-fc.amount)*100)/100;
+    fc.appliedMonths.push(mk);
+    changed=true;
+  });
+  if(changed){ save(KEYS.expenses, expenses); saveFixed(); saveWallet(); }
+}
+function ensureFixedGeneratedBacklog(){
+  const today = new Date();
+  for(let i=11;i>=0;i--){
+    ensureFixedGenerated(new Date(today.getFullYear(), today.getMonth()-i, 1));
+  }
+}
+function renderFixedList(){
+  const table = document.getElementById('fixedTable');
+  if(fixedCosts.length===0){
+    table.innerHTML = `<tr><td class="empty">Ainda sem custos fixos configurados.</td></tr>`;
+    return;
+  }
+  table.innerHTML = `<tr><th>Descrição</th><th>Dia</th><th style="text-align:right">Valor</th><th></th></tr>` +
+    fixedCosts.map(fc=>`<tr><td>${fc.desc} <span style="color:var(--ink-faint);font-family:var(--font-mono);font-size:10px;">· ${fc.account==='dinheiro'?'dinheiro':'conta'}</span></td><td class="amt">${fc.day}</td><td class="amt">${fmtEUR(fc.amount)}</td><td style="text-align:right"><button class="del-x" onclick="removeFixedCost('${fc.id}')">×</button></td></tr>`).join('');
+}
+
+/* ============ CARTEIRA ============ */
+function updateWalletBalances(){
+  const conta = parseFloat(document.getElementById('inputContaSaldo').value);
+  const dinheiro = parseFloat(document.getElementById('inputDinheiroSaldo').value);
+  if(!isNaN(conta)) wallet.conta = Math.round(conta*100)/100;
+  if(!isNaN(dinheiro)) wallet.dinheiro = Math.round(dinheiro*100)/100;
+  saveWallet();
+  renderWallet();
+}
+function renderWallet(){
+  document.getElementById('walletConta').textContent = fmtEUR(wallet.conta);
+  document.getElementById('walletDinheiro').textContent = fmtEUR(wallet.dinheiro);
+  document.getElementById('walletTotal').textContent = fmtEUR(wallet.conta+wallet.dinheiro);
+  document.getElementById('walletConta').className = 'value ' + (wallet.conta<0?'neg':'pos');
+  document.getElementById('walletDinheiro').className = 'value ' + (wallet.dinheiro<0?'neg':'pos');
+  document.getElementById('inputContaSaldo').value = wallet.conta;
+  document.getElementById('inputDinheiroSaldo').value = wallet.dinheiro;
+
+  const recent = expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,15);
+  const table = document.getElementById('walletMovTable');
+  if(recent.length===0){
+    table.innerHTML = `<tr><td class="empty">Sem movimentos ainda.</td></tr>`;
+  } else {
+    table.innerHTML = `<tr><th>Data</th><th>Descrição</th><th>Conta</th><th style="text-align:right">Valor</th></tr>` +
+      recent.map(e=>`<tr><td>${e.date}</td><td>${e.desc}</td><td>${e.account==='dinheiro'?'Dinheiro':'Conta'}</td><td class="amt" style="color:var(--brick)">-${fmtEUR(e.amount)}</td></tr>`).join('');
+  }
+}
 
 /* ============ MERCADO ============ */
 function buildZoneInputs(){
@@ -549,7 +714,7 @@ function renderGeral(){
     incTable.innerHTML = `<tr><td class="empty">Sem rendimentos registados este mês.</td></tr>`;
   } else {
     incTable.innerHTML = `<tr><th>Fonte</th><th style="text-align:right">Valor</th><th></th></tr>` +
-      mInc.map(i=>`<tr><td>${i.source}</td><td class="amt">${fmtEUR(i.amount)}</td><td style="text-align:right"><button class="del-x" onclick="removeIncome(${i.id})">×</button></td></tr>`).join('');
+      mInc.map(i=>`<tr><td>${i.source}</td><td class="amt">${fmtEUR(i.amount)}</td><td style="text-align:right"><button class="del-x" onclick="removeIncome('${i.id}')">×</button></td></tr>`).join('');
   }
 }
 
@@ -571,7 +736,7 @@ function renderCustos(){
     table.innerHTML = `<tr><td class="empty">Sem custos registados este mês.</td></tr>`;
   } else {
     table.innerHTML = `<tr><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th><th></th></tr>` +
-      mExp.slice().reverse().map(e=>`<tr><td>${e.desc}</td><td><span style="color:${CAT_COLORS[e.category]||'#888'}">${e.category}</span></td><td class="amt">${fmtEUR(e.amount)}</td><td style="text-align:right"><button class="del-x" onclick="removeExpense(${e.id})">×</button></td></tr>`).join('');
+      mExp.slice().reverse().map(e=>`<tr><td>${e.desc} <span style="color:var(--ink-faint);font-family:var(--font-mono);font-size:10px;">· ${e.account==='dinheiro'?'dinheiro':'conta'}</span></td><td><span style="color:${CAT_COLORS[e.category]||'#888'}">${e.category}</span></td><td class="amt">${fmtEUR(e.amount)}</td><td style="text-align:right"><button class="del-x" onclick="removeExpense('${e.id}')">×</button></td></tr>`).join('');
   }
 }
 
@@ -671,6 +836,13 @@ function renderSuggestions(){
     }
   }
 
+  if(wallet.conta<0 || wallet.dinheiro<0){
+    const parts=[];
+    if(wallet.conta<0) parts.push(`conta (${fmtEUR(wallet.conta)})`);
+    if(wallet.dinheiro<0) parts.push(`dinheiro vivo (${fmtEUR(wallet.dinheiro)})`);
+    suggestions.push({sev:'alerta', title:'Saldo negativo na carteira', text:`Tens saldo negativo em ${parts.join(' e ')}. Atualiza os valores reais na aba Carteira ou ajusta os próximos custos.`});
+  }
+
   const statusEl = document.getElementById('suggStatus');
   const hasAlerta = suggestions.some(s=>s.sev==='alerta');
   const hasAtencao = suggestions.some(s=>s.sev==='atencao');
@@ -689,7 +861,10 @@ function renderSuggestions(){
 
 /* ============ INIT ============ */
 function renderAll(){ renderGeral(); renderCustos(); }
+ensureFixedGeneratedBacklog();
 renderAll();
+renderFixedList();
+renderWallet();
 buildZoneInputs();
 document.getElementById('marketWeek').valueAsDate = new Date();
 </script>
